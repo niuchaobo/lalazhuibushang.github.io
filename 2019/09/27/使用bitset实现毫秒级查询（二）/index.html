@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT">
+  <meta name="keywords" content="java,">
 
 
 
@@ -79,13 +79,18 @@
 
 
 
-<meta property="og:type" content="website">
-<meta property="og:title" content="阿狸的世界">
-<meta property="og:url" content="http://yoursite.com/index.html">
+<meta name="description" content="在上一篇中我们了解了bitset索引的基本用法，本篇开始学习bitset索引更新及一些复杂查询。 1.bitset索引更新&amp;emsp;&amp;emsp;因为我们的数据是在系统启动时全部加载进内存，所以当数据库数据发生变化时要实时通知到内存，可以使用消息队列的方式实现：将新增或者修改的数据写入kafka,然后在索引服务中从kafka中读出数据更新索引.在UserIndexStore类中增加更新索引方法：">
+<meta name="keywords" content="java">
+<meta property="og:type" content="article">
+<meta property="og:title" content="使用bitset实现毫秒级查询（二）">
+<meta property="og:url" content="http://yoursite.com/2019/09/27/使用bitset实现毫秒级查询（二）/index.html">
 <meta property="og:site_name" content="阿狸的世界">
+<meta property="og:description" content="在上一篇中我们了解了bitset索引的基本用法，本篇开始学习bitset索引更新及一些复杂查询。 1.bitset索引更新&amp;emsp;&amp;emsp;因为我们的数据是在系统启动时全部加载进内存，所以当数据库数据发生变化时要实时通知到内存，可以使用消息队列的方式实现：将新增或者修改的数据写入kafka,然后在索引服务中从kafka中读出数据更新索引.在UserIndexStore类中增加更新索引方法：">
 <meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2019-09-27T08:27:49.532Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="阿狸的世界">
+<meta name="twitter:title" content="使用bitset实现毫秒级查询（二）">
+<meta name="twitter:description" content="在上一篇中我们了解了bitset索引的基本用法，本篇开始学习bitset索引更新及一些复杂查询。 1.bitset索引更新&amp;emsp;&amp;emsp;因为我们的数据是在系统启动时全部加载进内存，所以当数据库数据发生变化时要实时通知到内存，可以使用消息队列的方式实现：将新增或者修改的数据写入kafka,然后在索引服务中从kafka中读出数据更新索引.在UserIndexStore类中增加更新索引方法：">
 
 
 
@@ -115,13 +120,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/">
+  <link rel="canonical" href="http://yoursite.com/2019/09/27/使用bitset实现毫秒级查询（二）/">
 
 
 
 
 
-  <title>阿狸的世界</title>
+  <title>使用bitset实现毫秒级查询（二） | 阿狸的世界</title>
   
 
 
@@ -140,8 +145,7 @@
     
   
 
-  <div class="container sidebar-position-left 
-  page-home">
+  <div class="container sidebar-position-left page-post-detail">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -214,138 +218,9 @@
         <div class="content-wrap">
           <div id="content" class="content">
             
-  <section id="posts" class="posts-expand">
+
+  <div id="posts" class="posts-expand">
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/09/27/java.util.ConcurrentModificationException异常排查/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="ali">
-      <meta itemprop="description" content>
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="阿狸的世界">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2019/09/27/java.util.ConcurrentModificationException异常排查/" itemprop="url">未命名</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-09-27T16:28:05+08:00">
-                2019-09-27
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>&emsp;&emsp;java.util.ConcurrentModificationException对于这个异常我们一般会认为是在遍历list的时候对这个list做了add,remove等修改操作造成的，最近在线上日志偶尔发现了这个异常，完整异常如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">java.util.ConcurrentModificationException: null</span><br><span class="line">	at java.util.ArrayList.sort(ArrayList.java:1462)</span><br><span class="line">	at java.util.Collections.sort(Collections.java:175)</span><br><span class="line">	at com.xxx.xxx.xxx.xxx(xxx.java:17)注:这是业务代码所以用‘xxx’代替了</span><br><span class="line">	at com.xxx.xxx.xxx.xxx(xxx.java:65)</span><br><span class="line">	at sun.reflect.GeneratedMethodAccessor237.invoke(Unknown Source)</span><br><span class="line">	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)</span><br><span class="line">	at java.lang.reflect.Method.invoke(Method.java:498)</span><br><span class="line">	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205)</span><br><span class="line">	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:133)</span><br><span class="line">	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:97)</span><br><span class="line">	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:827)</span><br><span class="line">	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:738)</span><br><span class="line">	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:85)</span><br><span class="line">	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:963)</span><br><span class="line">	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:897)</span><br><span class="line">	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:970)</span><br><span class="line">	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:872)</span><br></pre></td></tr></table></figure>
-
-<p>代码如下：（原有代码比较复杂，写个类似demo代替）</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">public class CmeTest &#123;</span><br><span class="line">	private static Map&lt;String,List&lt;Integer&gt;&gt; map = new HashMap&lt;&gt;();</span><br><span class="line"></span><br><span class="line">	public static void main(String[] args) &#123;</span><br><span class="line">		buildMap();</span><br><span class="line">		Runnable run = new Runnable() &#123;</span><br><span class="line">			@Override</span><br><span class="line">			public void run() &#123;</span><br><span class="line">				Collections.sort(map.get(&quot;a&quot;));</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;;</span><br><span class="line">		ExecutorService pool = Executors.newFixedThreadPool(10);</span><br><span class="line">		for(int i=0 ;i&lt;1000;i++) &#123;</span><br><span class="line">			pool.execute(run);</span><br><span class="line">		&#125;</span><br><span class="line">		pool.shutdown();</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private static void buildMap() &#123;</span><br><span class="line">		List&lt;Integer&gt; list1 = new ArrayList&lt;&gt;();</span><br><span class="line">		list1.add(1);</span><br><span class="line">		list1.add(2);</span><br><span class="line">		list1.add(3);</span><br><span class="line">		map.put(&quot;a&quot;, list1);</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
-
-<p>代码的主要逻辑就是并发地对一个list进行排序。查看Collections.sort()的源码如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">1    @Override</span><br><span class="line">2    @SuppressWarnings(&quot;unchecked&quot;)</span><br><span class="line">3    public void sort(Comparator&lt;? super E&gt; c) &#123;</span><br><span class="line">4        final int expectedModCount = modCount;</span><br><span class="line">5        Arrays.sort((E[]) elementData, 0, size, c);</span><br><span class="line">6        if (modCount != expectedModCount) &#123;</span><br><span class="line">7            throw new ConcurrentModificationException();</span><br><span class="line">8        &#125;</span><br><span class="line">9        modCount++;</span><br><span class="line">10    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>重点看第6，10行，当第一个线程排序完成，执行完第9行时第二个线程正好执行到第6行，这时候就会抛出ConcurrentModificationException，所以对于全局的list,做并发排序的时候需要额外注意一下。解决方法有两个：<br>1.加锁<br>2.创建新的list,再将全局list的数据addAll到新list中，对新list排序</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
 
   
 
@@ -375,9 +250,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2019/09/27/使用bitset实现毫秒级查询（二）/" itemprop="url">使用bitset实现毫秒级查询（二）</a></h1>
+          <h1 class="post-title" itemprop="name headline">使用bitset实现毫秒级查询（二）</h1>
         
 
         <div class="post-meta">
@@ -427,9 +300,7 @@
       
 
       
-        
-          
-            <p>在<a href="http://www.cnblogs.com/ncbest/p/7703615.html" target="_blank" rel="noopener">上一篇</a>中我们了解了bitset索引的基本用法，本篇开始学习bitset索引更新及一些复杂查询。</p>
+        <p>在<a href="http://www.cnblogs.com/ncbest/p/7703615.html" target="_blank" rel="noopener">上一篇</a>中我们了解了bitset索引的基本用法，本篇开始学习bitset索引更新及一些复杂查询。</p>
 <h5 id="1-bitset索引更新"><a href="#1-bitset索引更新" class="headerlink" title="1.bitset索引更新"></a>1.bitset索引更新</h5><p>&emsp;&emsp;因为我们的数据是在系统启动时全部加载进内存，所以当数据库数据发生变化时要实时通知到内存，可以使用消息队列的方式实现：将新增或者修改的数据写入kafka,然后在索引服务中从kafka中读出数据更新索引.<br>在UserIndexStore类中增加更新索引方法：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line">	 * 更新索引</span><br><span class="line">	 * @param user</span><br><span class="line">	 */</span><br><span class="line">	public void updateIndex(User user) &#123;</span><br><span class="line">		String name = user.getName();</span><br><span class="line">		Integer userIndex = this.nameIndexMap.get(name);</span><br><span class="line">		if (userIndex != null) &#123;</span><br><span class="line">			clear(userIndex);//清除bitset对应位置的值</span><br><span class="line">			update(user, userIndex);</span><br><span class="line">			this.userMap.put(userIndex, user);</span><br><span class="line">			this.nameIndexMap.put(user.getName(), userIndex);</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			//新增时会有并发问题</span><br><span class="line">			synchronized (this) &#123;</span><br><span class="line">				int index = this.userMap.size() + 1;</span><br><span class="line">				createIndex(user, index);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private void update(User user, Integer userIndex) &#123;</span><br><span class="line">		getAddress().update(user.getAddress(), userIndex);</span><br><span class="line">		getAge().update(user.getAge(), userIndex);</span><br><span class="line">		getGender().update(user.getGender(), userIndex);</span><br><span class="line"></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private void clear(Integer index) &#123;</span><br><span class="line">		getAddress().clear(index);</span><br><span class="line">		getAge().clear(index);</span><br><span class="line">		getGender().clear(index);</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
 
@@ -450,8 +321,6 @@
 <hr>
 <h5 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h5><p>&emsp;&emsp;以上就实现了一个bitset索引，支持索引创建，更新，查询。并且因为没有传统的网络传输和磁盘io,所以速度非常快，基本上响应时间都在10ms以内。如果需要我可以在下一篇使用spring cloud搭建一个较完整的demo，供大家参考使用。</p>
 
-          
-        
       
     </div>
     
@@ -466,147 +335,40 @@
 
     <footer class="post-footer">
       
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/09/27/使用bitset实现毫秒级查询/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="ali">
-      <meta itemprop="description" content>
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="阿狸的世界">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2019/09/27/使用bitset实现毫秒级查询/" itemprop="url">使用bitset实现毫秒级查询</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-09-27T12:26:53+08:00">
-                2019-09-27
-              </time>
-            
-
-            
-
-            
-          </span>
-
+        <div class="post-tags">
           
-
+            <a href="/tags/java/" rel="tag"># java</a>
           
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
         </div>
-      </header>
-    
+      
 
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
+      
       
       
 
       
-        
-          <h5 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h5><p>因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久</p>
-<hr>
-<h5 id="bitset介绍"><a href="#bitset介绍" class="headerlink" title="bitset介绍"></a>bitset介绍</h5><p>看JDK中的解释简直一头雾水，用我自己的理解概括一下</p>
-<ol>
-<li>bitset的内部实现是long数组</li>
-<li>set中每一个位的默认值为false（0）</li>
-<li>bitset长度按需增长</li>
-<li>bitset非线程安全</li>
-</ol>
-<hr>
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2019/09/27/使用bitset实现毫秒级查询/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/09/27/使用bitset实现毫秒级查询/" rel="next" title="使用bitset实现毫秒级查询">
+                <i class="fa fa-chevron-left"></i> 使用bitset实现毫秒级查询
+              </a>
+            
           </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
 
-    
+          <span class="post-nav-divider"></span>
 
-    
-
-    
-
-    <footer class="post-footer">
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/09/27/java.util.ConcurrentModificationException异常排查/" rel="prev" title>
+                 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
       
 
       
-
-      
-
-      
-      
-        <div class="post-eof"></div>
       
     </footer>
   </div>
@@ -616,10 +378,11 @@
   </article>
 
 
-    
-  </section>
 
-  
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -627,6 +390,10 @@
 
 
           
+
+  
+
+
 
         </div>
         
@@ -647,8 +414,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -699,6 +475,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-bitset索引更新"><span class="nav-number">1.</span> <span class="nav-text">1.bitset索引更新</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-bitset进阶查询"><span class="nav-number">2.</span> <span class="nav-text">2.bitset进阶查询</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#测试，查询年龄在16-17之间的北京女孩。"><span class="nav-number">3.</span> <span class="nav-text">测试，查询年龄在16-17之间的北京女孩。</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#总结"><span class="nav-number">4.</span> <span class="nav-text">总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -838,6 +630,10 @@
   
 
   
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
 
   
 
