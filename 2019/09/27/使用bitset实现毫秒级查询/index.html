@@ -79,17 +79,17 @@
 
 
 
-<meta name="description" content="前言因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久  bitset介绍看JDK中的解释简直一头雾水，用我自己的理解概括一下  bitset的内部实现是long数组 set中每一个位的默认值为false（0） bitset长度按需增长 bitset非线程安全   bitset关键方">
+<meta name="description" content="前言因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久  bitset介绍看JDK中的解释简直一头雾水，用我自己的理解概括一下  bitset的内部实现是long数组 set中每一个位的默认值为false（0） bitset长度按需增长 bitset非线程安全">
 <meta property="og:type" content="article">
 <meta property="og:title" content="使用bitset实现毫秒级查询">
 <meta property="og:url" content="http://yoursite.com/2019/09/27/使用bitset实现毫秒级查询/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="前言因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久  bitset介绍看JDK中的解释简直一头雾水，用我自己的理解概括一下  bitset的内部实现是long数组 set中每一个位的默认值为false（0） bitset长度按需增长 bitset非线程安全   bitset关键方">
+<meta property="og:description" content="前言因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久  bitset介绍看JDK中的解释简直一头雾水，用我自己的理解概括一下  bitset的内部实现是long数组 set中每一个位的默认值为false（0） bitset长度按需增长 bitset非线程安全">
 <meta property="og:locale" content="en">
-<meta property="og:updated_time" content="2019-09-27T07:25:19.545Z">
+<meta property="og:updated_time" content="2019-09-27T07:31:05.397Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="使用bitset实现毫秒级查询">
-<meta name="twitter:description" content="前言因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久  bitset介绍看JDK中的解释简直一头雾水，用我自己的理解概括一下  bitset的内部实现是long数组 set中每一个位的默认值为false（0） bitset长度按需增长 bitset非线程安全   bitset关键方">
+<meta name="twitter:description" content="前言因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久  bitset介绍看JDK中的解释简直一头雾水，用我自己的理解概括一下  bitset的内部实现是long数组 set中每一个位的默认值为false（0） bitset长度按需增长 bitset非线程安全">
 
 
 
@@ -309,6 +309,7 @@
 <li>bitset非线程安全</li>
 </ol>
 <hr>
+<a id="more"></a>
 <h5 id="bitset关键方法分析"><a href="#bitset关键方法分析" class="headerlink" title="bitset关键方法分析"></a>bitset关键方法分析</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * Sets the bit at the specified index to &#123;@code true&#125;.</span><br><span class="line"> *</span><br><span class="line"> * @param  bitIndex a bit index</span><br><span class="line"> * @throws IndexOutOfBoundsException if the specified index is negative</span><br><span class="line"> * @since  JDK1.0</span><br><span class="line"> */</span><br><span class="line">public void set(int bitIndex) &#123;</span><br><span class="line">    if (bitIndex &lt; 0)</span><br><span class="line">        throw new IndexOutOfBoundsException(&quot;bitIndex &lt; 0: &quot; + bitIndex);</span><br><span class="line"></span><br><span class="line">    int wordIndex = wordIndex(bitIndex);</span><br><span class="line">    expandTo(wordIndex);</span><br><span class="line"></span><br><span class="line">    words[wordIndex] |= (1L &lt;&lt; bitIndex); // Restores invariants</span><br><span class="line"></span><br><span class="line">    checkInvariants();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>设置指定“位”为true，bitIndex参数为非负整数。假设我们执行以下代码,观察上面代码中worIndex，words[wordIndex]值的变化</p>

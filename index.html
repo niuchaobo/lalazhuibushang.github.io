@@ -299,14 +299,16 @@
 
       
         
-          
-          前言因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久
-
-bitset介绍看JDK中的解释简直一头雾水，用我自己的理解概括一下
-
-bitset的内部实现是long数组
-set中每一个位
-          ...
+          <h5 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h5><p>因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久</p>
+<hr>
+<h5 id="bitset介绍"><a href="#bitset介绍" class="headerlink" title="bitset介绍"></a>bitset介绍</h5><p>看JDK中的解释简直一头雾水，用我自己的理解概括一下</p>
+<ol>
+<li>bitset的内部实现是long数组</li>
+<li>set中每一个位的默认值为false（0）</li>
+<li>bitset长度按需增长</li>
+<li>bitset非线程安全</li>
+</ol>
+<hr>
           <!--noindex-->
           <div class="post-button text-center">
             <a class="btn" href="/2019/09/27/使用bitset实现毫秒级查询/#more" rel="contents">
@@ -430,9 +432,11 @@ set中每一个位
 
       
         
-          
-          Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in 
-          ...
+          <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
+<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
           <!--noindex-->
           <div class="post-button text-center">
             <a class="btn" href="/2019/09/27/hello-world/#more" rel="contents">
