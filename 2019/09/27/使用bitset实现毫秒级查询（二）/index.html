@@ -87,7 +87,7 @@
 <meta property="og:site_name" content="阿狸的世界">
 <meta property="og:description" content="在上一篇中我们了解了bitset索引的基本用法，本篇开始学习bitset索引更新及一些复杂查询。 1.bitset索引更新&amp;emsp;&amp;emsp;因为我们的数据是在系统启动时全部加载进内存，所以当数据库数据发生变化时要实时通知到内存，可以使用消息队列的方式实现：将新增或者修改的数据写入kafka,然后在索引服务中从kafka中读出数据更新索引.在UserIndexStore类中增加更新索引方法：">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-09-27T08:27:49.532Z">
+<meta property="og:updated_time" content="2019-09-27T08:30:19.130Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="使用bitset实现毫秒级查询（二）">
 <meta name="twitter:description" content="在上一篇中我们了解了bitset索引的基本用法，本篇开始学习bitset索引更新及一些复杂查询。 1.bitset索引更新&amp;emsp;&amp;emsp;因为我们的数据是在系统启动时全部加载进内存，所以当数据库数据发生变化时要实时通知到内存，可以使用消息队列的方式实现：将新增或者修改的数据写入kafka,然后在索引服务中从kafka中读出数据更新索引.在UserIndexStore类中增加更新索引方法：">
@@ -302,6 +302,8 @@
       
         <p>在<a href="http://www.cnblogs.com/ncbest/p/7703615.html" target="_blank" rel="noopener">上一篇</a>中我们了解了bitset索引的基本用法，本篇开始学习bitset索引更新及一些复杂查询。</p>
 <h5 id="1-bitset索引更新"><a href="#1-bitset索引更新" class="headerlink" title="1.bitset索引更新"></a>1.bitset索引更新</h5><p>&emsp;&emsp;因为我们的数据是在系统启动时全部加载进内存，所以当数据库数据发生变化时要实时通知到内存，可以使用消息队列的方式实现：将新增或者修改的数据写入kafka,然后在索引服务中从kafka中读出数据更新索引.<br>在UserIndexStore类中增加更新索引方法：</p>
+<a id="more"></a>
+
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line">	 * 更新索引</span><br><span class="line">	 * @param user</span><br><span class="line">	 */</span><br><span class="line">	public void updateIndex(User user) &#123;</span><br><span class="line">		String name = user.getName();</span><br><span class="line">		Integer userIndex = this.nameIndexMap.get(name);</span><br><span class="line">		if (userIndex != null) &#123;</span><br><span class="line">			clear(userIndex);//清除bitset对应位置的值</span><br><span class="line">			update(user, userIndex);</span><br><span class="line">			this.userMap.put(userIndex, user);</span><br><span class="line">			this.nameIndexMap.put(user.getName(), userIndex);</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			//新增时会有并发问题</span><br><span class="line">			synchronized (this) &#123;</span><br><span class="line">				int index = this.userMap.size() + 1;</span><br><span class="line">				createIndex(user, index);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private void update(User user, Integer userIndex) &#123;</span><br><span class="line">		getAddress().update(user.getAddress(), userIndex);</span><br><span class="line">		getAge().update(user.getAge(), userIndex);</span><br><span class="line">		getGender().update(user.getGender(), userIndex);</span><br><span class="line"></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private void clear(Integer index) &#123;</span><br><span class="line">		getAddress().clear(index);</span><br><span class="line">		getAge().clear(index);</span><br><span class="line">		getGender().clear(index);</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
 
 <p>在BitSetIndexModel类中增加clear()方法</p>
@@ -360,8 +362,8 @@
 
           <div class="post-nav-prev post-nav-item">
             
-              <a href="/2019/09/27/java.util.ConcurrentModificationException异常排查/" rel="prev" title>
-                 <i class="fa fa-chevron-right"></i>
+              <a href="/2019/09/27/java.util.ConcurrentModificationException异常排查/" rel="prev" title="java.util.ConcurrentModificationException异常排查">
+                java.util.ConcurrentModificationException异常排查 <i class="fa fa-chevron-right"></i>
               </a>
             
           </div>
