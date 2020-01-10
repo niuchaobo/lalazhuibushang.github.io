@@ -1,2 +1,884 @@
+<!DOCTYPE html>
 
 
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="java,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="前言因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久  bitset介绍看JDK中的解释简直一头雾水，用我自己的理解概括一下  bitset的内部实现是long数组 set中每一个位的默认值为false（0） bitset长度按需增长 bitset非线程安全">
+<meta name="keywords" content="java">
+<meta property="og:type" content="article">
+<meta property="og:title" content="使用bitset实现毫秒级查询">
+<meta property="og:url" content="http://yoursite.com/2019/09/27/使用bitset实现毫秒级查询/index.html">
+<meta property="og:site_name" content="阿狸的世界">
+<meta property="og:description" content="前言因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久  bitset介绍看JDK中的解释简直一头雾水，用我自己的理解概括一下  bitset的内部实现是long数组 set中每一个位的默认值为false（0） bitset长度按需增长 bitset非线程安全">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2020-01-10T07:21:47.430Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="使用bitset实现毫秒级查询">
+<meta name="twitter:description" content="前言因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久  bitset介绍看JDK中的解释简直一头雾水，用我自己的理解概括一下  bitset的内部实现是long数组 set中每一个位的默认值为false（0） bitset长度按需增长 bitset非线程安全">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2019/09/27/使用bitset实现毫秒级查询/">
+
+
+
+
+
+  <title>使用bitset实现毫秒级查询 | 阿狸的世界</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">阿狸的世界</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/09/27/使用bitset实现毫秒级查询/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="ali">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/yy.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="阿狸的世界">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">使用bitset实现毫秒级查询</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-09-27T12:26:53+08:00">
+                2019-09-27
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/技术/" itemprop="url" rel="index">
+                    <span itemprop="name">技术</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-wordcount">
+              
+                
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">字数统计&#58;</span>
+                
+                <span title="字数统计">
+                  2k
+                </span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">
+                  10
+                </span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h5 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h5><p>因为业务要求api的一次请求响应时间在10ms以内，所以传统的数据库查询操作直接被排除(网络io和磁盘io)。通过调研，最终使用了bitset,目前已经正常运行了很久</p>
+<hr>
+<h5 id="bitset介绍"><a href="#bitset介绍" class="headerlink" title="bitset介绍"></a>bitset介绍</h5><p>看JDK中的解释简直一头雾水，用我自己的理解概括一下</p>
+<ol>
+<li>bitset的内部实现是long数组</li>
+<li>set中每一个位的默认值为false（0）</li>
+<li>bitset长度按需增长</li>
+<li>bitset非线程安全</li>
+</ol>
+<hr>
+<a id="more"></a>
+<h5 id="bitset关键方法分析"><a href="#bitset关键方法分析" class="headerlink" title="bitset关键方法分析"></a>bitset关键方法分析</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * Sets the bit at the specified index to &#123;@code true&#125;.</span><br><span class="line"> *</span><br><span class="line"> * @param  bitIndex a bit index</span><br><span class="line"> * @throws IndexOutOfBoundsException if the specified index is negative</span><br><span class="line"> * @since  JDK1.0</span><br><span class="line"> */</span><br><span class="line">public void set(int bitIndex) &#123;</span><br><span class="line">    if (bitIndex &lt; 0)</span><br><span class="line">        throw new IndexOutOfBoundsException(&quot;bitIndex &lt; 0: &quot; + bitIndex);</span><br><span class="line"></span><br><span class="line">    int wordIndex = wordIndex(bitIndex);</span><br><span class="line">    expandTo(wordIndex);</span><br><span class="line"></span><br><span class="line">    words[wordIndex] |= (1L &lt;&lt; bitIndex); // Restores invariants</span><br><span class="line"></span><br><span class="line">    checkInvariants();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>设置指定“位”为true，bitIndex参数为非负整数。假设我们执行以下代码,观察上面代码中worIndex，words[wordIndex]值的变化</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">BitSet bs = new BitSet()</span><br><span class="line">bs.set(0);</span><br><span class="line">bs.set(1);</span><br><span class="line">bs.set(2);</span><br><span class="line">bs.set(3);</span><br><span class="line">bs.set(4);</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>bitIndex</th>
+<th>wordIndex</th>
+<th>words[wordIndex]</th>
+<th>words[wordIndex]二进制表示</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0001</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0</td>
+<td>3</td>
+<td>0011</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0</td>
+<td>7</td>
+<td>0111</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0</td>
+<td>15</td>
+<td>1111</td>
+</tr>
+<tr>
+<td>4</td>
+<td>0</td>
+<td>31</td>
+<td>0001 1111</td>
+</tr>
+<tr>
+<td>通过上表，我们可以很清晰的根据bitIndex和words[wordIndex]二进制值的对应关系，得到一个结论，即：bitset中每一个long可以表示64个非负整数在bitSet中存在与否。例如：0001可以表示整数0在bitset中存在，1111可以表示整数3,2,1,0在bitset中存在。</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>***</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<h4 id="进入正题，实现bitset毫秒级查询"><a href="#进入正题，实现bitset毫秒级查询" class="headerlink" title="进入正题，实现bitset毫秒级查询"></a>进入正题，实现bitset毫秒级查询</h4><p>想象一个场景，我们有一张user表,name唯一。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE `user` (</span><br><span class="line">  `id` int(11) NOT NULL AUTO_INCREMENT,</span><br><span class="line">  `name` varchar(255) NOT NULL,</span><br><span class="line">  `address` varchar(255) NOT NULL comment &apos;地址&apos;,</span><br><span class="line">  `gender` varchar(10) NOT NULL comment &apos;性别&apos;,</span><br><span class="line">  `age` varchar(10) NOT NULL,</span><br><span class="line">  PRIMARY KEY (`id`)，</span><br><span class="line">  UNIQUE KEY `name` (`name`)</span><br><span class="line">) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;</span><br></pre></td></tr></table></figure>
+
+<p>假设我们要查询“北京市18岁的女生”，那么对应的sql如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select * from `user` where address=&apos;北京&apos; and age=&apos;18&apos; and gender=&apos;girl&apos;;</span><br></pre></td></tr></table></figure>
+
+<p>如何使用bitset实现同样的查询呢？</p>
+<ol>
+<li>将user表数据加载进内存中</li>
+<li>为user表建立address,age,gender维度的bitset索引</li>
+<li>根据索引查询数据</li>
+</ol>
+<h5 id="1-将user表数据加载进内存中"><a href="#1-将user表数据加载进内存中" class="headerlink" title="1.将user表数据加载进内存中"></a>1.将user表数据加载进内存中</h5><p>将user表从数据库读取出来存入List</p>
+<p>User实体类：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">public class User implements Cloneable &#123;</span><br><span class="line">	private String name;</span><br><span class="line">	private String address;</span><br><span class="line">	private String gender;</span><br><span class="line">	private String age;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public String toString() &#123;</span><br><span class="line">		return &quot;User [name=&quot; + name + &quot;, address=&quot; + address + &quot;, gender=&quot; + gender + &quot;, age=&quot; + age + &quot;]&quot;;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public User clone() &#123;</span><br><span class="line">		User user = null;</span><br><span class="line">		try &#123;</span><br><span class="line">			user = (User) super.clone();</span><br><span class="line">		&#125; catch (CloneNotSupportedException e) &#123;</span><br><span class="line">			e.printStackTrace();</span><br><span class="line">		&#125;</span><br><span class="line">		return user;</span><br><span class="line">	&#125;</span><br><span class="line">    //省略get set 方法。。。</span><br></pre></td></tr></table></figure>
+
+<h5 id="2-建立索引"><a href="#2-建立索引" class="headerlink" title="2.建立索引"></a>2.建立索引</h5><p>创建bitset索引模型类</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br></pre></td><td class="code"><pre><span class="line">public class BitSetIndexModel &#123;</span><br><span class="line">	private String type;//索引类型：address，age，gender</span><br><span class="line">	private ConcurrentHashMap&lt;String, Integer&gt; map;//索引类型和bitSet在bsList中下标的映射关系</span><br><span class="line">	private List&lt;String&gt; list;//索引类型的值集合，例如gender：girl，boy</span><br><span class="line">	private List&lt;BitSet&gt; bsList;//bitset集合</span><br><span class="line"></span><br><span class="line">	public BitSetIndex() &#123;</span><br><span class="line">		</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public BitSetIndexModel(String type) &#123;</span><br><span class="line">		this.type = type;</span><br><span class="line">		map = new ConcurrentHashMap&lt;String, Integer&gt;();</span><br><span class="line">		list = new ArrayList&lt;String&gt;();</span><br><span class="line">		bsList = new ArrayList&lt;BitSet&gt;();</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	public String getType() &#123;</span><br><span class="line">		return type;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public void setType(String type) &#123;</span><br><span class="line">		this.type = type;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public Map&lt;String, Integer&gt; getMap() &#123;</span><br><span class="line">		return map;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public void setMap(ConcurrentHashMap&lt;String, Integer&gt; map) &#123;</span><br><span class="line">		this.map = map;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public List&lt;String&gt; getList() &#123;</span><br><span class="line">		return list;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public void setList(List&lt;String&gt; list) &#123;</span><br><span class="line">		this.list = list;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public List&lt;BitSet&gt; getBsList() &#123;</span><br><span class="line">		return bsList;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public void setBsList(List&lt;BitSet&gt; bsList) &#123;</span><br><span class="line">		this.bsList = bsList;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 *</span><br><span class="line">	 * @param str</span><br><span class="line">	 * @param i</span><br><span class="line">	 */</span><br><span class="line">	public void createIndex(String str, int i) &#123;</span><br><span class="line">		BitSet bitset = null;</span><br><span class="line">		//获取‘str’对应的bitset在bsList中的下标</span><br><span class="line">		Integer index = this.getMap().get(str);</span><br><span class="line">		if (index != null) &#123;</span><br><span class="line">			bitset = this.getBsList().get(index);</span><br><span class="line">			if (bitset == null) &#123;</span><br><span class="line">				bitset = new BitSet();</span><br><span class="line">				this.getBsList().add(index, bitset);</span><br><span class="line">			&#125;</span><br><span class="line">			bitset.set(i, true);// 将str对应的位置为true,true可省略</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			bitset = new BitSet();</span><br><span class="line">			List&lt;String&gt; list = this.getList();</span><br><span class="line">			list.add(str);</span><br><span class="line">			index = list.size() - 1;</span><br><span class="line">			bitset.set(i, true);</span><br><span class="line">			this.getBsList().add(bitset);</span><br><span class="line">			this.getMap().put(str, index);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	/**</span><br><span class="line">	 * 从entity里拿出符合条件的bitset</span><br><span class="line">	 *</span><br><span class="line">	 * @param str</span><br><span class="line">	 * @return</span><br><span class="line">	 */</span><br><span class="line">	public BitSet get(String str) &#123;</span><br><span class="line">		BitSet bitset = null;</span><br><span class="line">		str = str.toLowerCase();</span><br><span class="line">		Integer index = this.getMap().get(str);</span><br><span class="line"></span><br><span class="line">		if (index != null) &#123;</span><br><span class="line">			bitset = this.getBsList().get(index);</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			bitset = new BitSet();</span><br><span class="line">		&#125;</span><br><span class="line">		return bitset;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * bitset的与运算</span><br><span class="line">	 *</span><br><span class="line">	 * @param str</span><br><span class="line">	 * @param bitset</span><br><span class="line">	 * @return</span><br><span class="line">	 */</span><br><span class="line">	public BitSet and(String str, BitSet bitset) &#123;</span><br><span class="line">		if (str != null) &#123;</span><br><span class="line">			str = str.toLowerCase();</span><br><span class="line">			if (bitset != null) &#123;</span><br><span class="line">				bitset.and(get(str));</span><br><span class="line">			&#125; else &#123;</span><br><span class="line">				bitset = new BitSet();</span><br><span class="line">				bitset.or(get(str));</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		return bitset;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * bitset的或运算</span><br><span class="line">	 *</span><br><span class="line">	 * @param str</span><br><span class="line">	 * @param bitset</span><br><span class="line">	 * @return</span><br><span class="line">	 */</span><br><span class="line">	public BitSet or(String str, BitSet bitset) &#123;</span><br><span class="line">		if (str != null) &#123;</span><br><span class="line">			str = str.toLowerCase();</span><br><span class="line">			if (bitset != null) &#123;</span><br><span class="line">				bitset.or(get(str));</span><br><span class="line">			&#125; else &#123;</span><br><span class="line">				bitset = new BitSet();</span><br><span class="line">				bitset.or(get(str));</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		return bitset;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * 获取bitset值为true的 即 把 bitset翻译为list的索引</span><br><span class="line">	 *</span><br><span class="line">	 * @param bitset</span><br><span class="line">	 * @return</span><br><span class="line">	 */</span><br><span class="line">	public static List&lt;Integer&gt; getRealIndexs(BitSet bitset) &#123;</span><br><span class="line">		List&lt;Integer&gt; indexs = new ArrayList&lt;Integer&gt;();</span><br><span class="line">		if (bitset != null) &#123;</span><br><span class="line">			int i = bitset.nextSetBit(0);</span><br><span class="line">			if (i != -1) &#123;</span><br><span class="line">				indexs.add(i);</span><br><span class="line">				for (i = bitset.nextSetBit(i + 1); i &gt;= 0; i = bitset.nextSetBit(i + 1)) &#123;</span><br><span class="line">					int endOfRun = bitset.nextClearBit(i);</span><br><span class="line">					do &#123;</span><br><span class="line">						indexs.add(i);</span><br><span class="line">					&#125; while (++i &lt; endOfRun);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return indexs;</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>为每一个user对象创建address,gender,age维度索引</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br></pre></td><td class="code"><pre><span class="line">public class UserIndexStore &#123;</span><br><span class="line"></span><br><span class="line">	private static final String ADDRESS = &quot;address&quot;;</span><br><span class="line">	private static final String GENDER = &quot;gender&quot;;</span><br><span class="line">	private static final String AGE = &quot;age&quot;;</span><br><span class="line">	private BitSetIndexModel address;</span><br><span class="line">	private BitSetIndexModel gender;</span><br><span class="line">	private BitSetIndexModel age;</span><br><span class="line">	private ConcurrentHashMap&lt;Integer, User&gt; userMap;//存储所有的user数据</span><br><span class="line">        private ConcurrentHashMap&lt;String, Integer&gt; nameIndexMap;//name和index映射</span><br><span class="line"></span><br><span class="line">	public static final UserIndexStore INSTANCE = getInstance();</span><br><span class="line"></span><br><span class="line">	private UserIndexStore() &#123;</span><br><span class="line">		init();</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public static UserIndexStore getInstance() &#123;</span><br><span class="line">		return UserIndexStoreHolder.instance;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private static class UserIndexStoreHolder &#123;</span><br><span class="line">		private static UserIndexStore instance = new UserIndexStore();</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private void init() &#123;</span><br><span class="line">		this.address = new BitSetIndexModel(ADDRESS);</span><br><span class="line">		this.gender = new BitSetIndexModel(GENDER);</span><br><span class="line">		this.age = new BitSetIndexModel(AGE);</span><br><span class="line">		userMap = new ConcurrentHashMap&lt;Integer, User&gt;();</span><br><span class="line">                nameIndexMap =  new ConcurrentHashMap&lt;String, Integer&gt;();</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * 构建索引</span><br><span class="line">	 * @param users </span><br><span class="line">	 */</span><br><span class="line">	public void createIndex(List&lt;User&gt; users) &#123;</span><br><span class="line">		if (users != null &amp;&amp; users.size() &gt; 0) &#123;</span><br><span class="line">			for (int index = 0; index &lt; users.size(); index++) &#123;</span><br><span class="line">				User user = users.get(index);</span><br><span class="line">				createIndex(user, index);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private void createIndex(User user, int index) &#123;</span><br><span class="line">		getAddress().update(user.getAddress(), index);</span><br><span class="line">		getGender().update(user.getGender(), index);</span><br><span class="line">		getAge().update(user.getAge(), index);</span><br><span class="line">		this.userMap.put(index, user);</span><br><span class="line">		this.nameIndexMap.put(user.getName(), index);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public BitSet query(String address, String gender, String age) &#123;</span><br><span class="line">		BitSet bitset = null;</span><br><span class="line">		bitset = getAddress().and(address, bitset);</span><br><span class="line">		bitset = getGender().and(gender, bitset);</span><br><span class="line">		bitset = getAge().and(age, bitset);</span><br><span class="line">		return bitset;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public User findUser(Integer index) &#123;</span><br><span class="line">		User user = this.userMap.get(index);</span><br><span class="line">		if (user != null) &#123;</span><br><span class="line">			return user.clone();//可能会对user做修改操作,要保证内存原始数据不变</span><br><span class="line">		&#125;</span><br><span class="line">		return null;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public BitSetIndexModel getAddress() &#123;</span><br><span class="line">		return address;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public void setAddress(BitSetIndexModel address) &#123;</span><br><span class="line">		this.address = address;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public BitSetIndexModel getGender() &#123;</span><br><span class="line">		return gender;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public void setGender(BitSetIndexModel gender) &#123;</span><br><span class="line">		this.gender = gender;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public BitSetIndexModel getAge() &#123;</span><br><span class="line">		return age;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public void setAge(BitSetIndexModel age) &#123;</span><br><span class="line">		this.age = age;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h5 id="3-测试bitset"><a href="#3-测试bitset" class="headerlink" title="3.测试bitset"></a>3.测试bitset</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line">public class BitSetTest &#123;</span><br><span class="line"></span><br><span class="line">	public static void main(String[] args) &#123;</span><br><span class="line">		List&lt;User&gt; users = buildData();</span><br><span class="line">		UserIndexStore.getInstance().createIndex(users);</span><br><span class="line">		ExecutorService executorService = Executors.newFixedThreadPool(20);</span><br><span class="line">		int num = 2000;</span><br><span class="line">		long begin1 = System.currentTimeMillis();</span><br><span class="line">		for (int i = 0; i &lt; num; i++) &#123;</span><br><span class="line">			Runnable syncRunnable = new Runnable() &#123;</span><br><span class="line">				@Override</span><br><span class="line">				public void run() &#123;</span><br><span class="line">					List&lt;Integer&gt; indexs = BitSetIndexModel.getRealIndexs(UserIndexStore.getInstance().query(&quot;北京&quot;, &quot;girl&quot;, &quot;18&quot;));</span><br><span class="line">					for (Integer index : indexs) &#123;</span><br><span class="line">						UserIndexStore.getInstance().findUser(index);</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;;</span><br><span class="line">			executorService.execute(syncRunnable);</span><br><span class="line">		&#125;</span><br><span class="line">		executorService.shutdown();</span><br><span class="line">		while (true) &#123;</span><br><span class="line">			try &#123;</span><br><span class="line">				if (executorService.awaitTermination(1, TimeUnit.SECONDS)) &#123;</span><br><span class="line">					System.out.println(&quot;单次查询时间为：&quot; + (System.currentTimeMillis() - begin1) / num + &quot;ms&quot;);</span><br><span class="line">					break;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125; catch (InterruptedException e) &#123;</span><br><span class="line">				e.printStackTrace();</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private static List&lt;User&gt; buildData() &#123;</span><br><span class="line">		String[] addresss = &#123; &quot;北京&quot;, &quot;上海&quot;, &quot;深圳&quot; &#125;;</span><br><span class="line">		String[] ages = &#123; &quot;16&quot;, &quot;17&quot;, &quot;18&quot; &#125;;</span><br><span class="line">		List&lt;User&gt; users = new ArrayList&lt;&gt;();</span><br><span class="line">		for (int i = 0; i &lt; 200000; i++) &#123;</span><br><span class="line">			User user = new User();</span><br><span class="line">			user.setName(&quot;name&quot; + i);</span><br><span class="line">			int rand = ThreadLocalRandom.current().nextInt(3);</span><br><span class="line">			user.setAddress(addresss[ThreadLocalRandom.current().nextInt(3)]);</span><br><span class="line">			user.setGender((rand &amp; 1) == 0 ? &quot;girl&quot; : &quot;boy&quot;);</span><br><span class="line">			user.setAge(ages[ThreadLocalRandom.current().nextInt(3)]);</span><br><span class="line">			users.add(user);</span><br><span class="line">		&#125;</span><br><span class="line">		return users;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>测试结果(查询2w次)：<br>数据量（users.size()） | 并发数 | 平均查询时间<br>—|—|—<br>20w | 10 | 1ms<br>50w | 20 | 3ms<br>100w| 50 | 9ms</p>
+<blockquote>
+<p>测试机为thinkpad x240 i5 8g内存</p>
+</blockquote>
+<h5 id="4-总结"><a href="#4-总结" class="headerlink" title="4.总结"></a>4.总结</h5><p>==优点==：<br>通过测试发现随着数据量的增大和并发数的提高，平均耗时并没有明显升高，并且响应时间都在10ms以内</p>
+<p>==缺点==：</p>
+<ol>
+<li>不适合数据量太大的情况,因为需要把数据全部加载进内存</li>
+<li>不适合复杂查询</li>
+<li>不适合对name,id等唯一值做查询<h5 id="后记"><a href="#后记" class="headerlink" title="后记"></a>后记</h5></li>
+</ol>
+<p><strong>因为我们的查询业务比较简单，唯一的要求是速度，并且数据量也不大，每张表的数据量都不超过100w，所以使用这种方式比较合适。<br>在本篇文章中只谈到了如何创建索引，以及最基本的查询，在下一篇中我会继续说明如何更新索引，以及一些复杂查询，比如&lt;,&gt;,between and。</strong></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/java/" rel="tag"># java</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/09/27/使用bitset实现毫秒级查询（二）/" rel="prev" title="使用bitset实现毫秒级查询（二）">
+                使用bitset实现毫秒级查询（二） <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/yy.jpg" alt="ali">
+            
+              <p class="site-author-name" itemprop="name">ali</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">3</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">1</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">1</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-5"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#bitset介绍"><span class="nav-number">2.</span> <span class="nav-text">bitset介绍</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#bitset关键方法分析"><span class="nav-number">3.</span> <span class="nav-text">bitset关键方法分析</span></a></li></ol><li class="nav-item nav-level-4"><a class="nav-link" href="#进入正题，实现bitset毫秒级查询"><span class="nav-number"></span> <span class="nav-text">进入正题，实现bitset毫秒级查询</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-将user表数据加载进内存中"><span class="nav-number">1.</span> <span class="nav-text">1.将user表数据加载进内存中</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-建立索引"><span class="nav-number">2.</span> <span class="nav-text">2.建立索引</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-测试bitset"><span class="nav-number">3.</span> <span class="nav-text">3.测试bitset</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#4-总结"><span class="nav-number">4.</span> <span class="nav-text">4.总结</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#后记"><span class="nav-number">5.</span> <span class="nav-text">后记</span></a></li></ol></li></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">ali</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">Site words total count&#58;</span>
+    
+    <span title="Site words total count">3.9k</span>
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
